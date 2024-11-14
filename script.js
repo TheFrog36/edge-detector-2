@@ -6,6 +6,7 @@ let originalData = []
 let originalSlimData = []
 let standardDeviation = 3
 let boxes = 3
+let simplifiedRoberCrossKernel = true
 
 window.onload = function() {
     const img = new Image();
@@ -33,19 +34,71 @@ window.onload = function() {
             boxes = v.target.valueAsNumber;
             blur()
         })
+
+        document.querySelector('#simple-rober-cross').addEventListener('change', (v) => {
+            simplifiedRoberCrossKernel = v.target.checked;
+            blur()
+        })
+
     };
 
 };
+// pixData compressed data (not rgba, just number array between 0 255 as gray)
+function test(pixData, width, height){
+    let operation
+    if(simplifiedRoberCrossKernel) {
+        operation = (p1,p2,p3,p4) => Math.abs(p1 - p4) + Math.abs(p2 - p3)
+    } else {
+        operation = (p1,p2,p3,p4) => {
+            const gx = p1 - p4
+            const gy = p2 - p3
+            return Math.sqrt(gx * gx + gy * gy);
+        }
+    }
+    let t = []
+    for(let y = 0; y < height - 1; y++) {
+        for(let x = 0; x < width - 1; x++){
+            const i = y * width + x
+            const p1 = pixData[i]
+            const p2 = pixData[i+1]
+            const p3 = pixData[i + width]
+            const p4 = pixData[i + width + 1]
+            t.push(operation(p1,p2,p3,p4))
+
+            // let Gx = p1 - p4; // Gx = (I(i, j) - I(i+1, j+1))
+            // let Gy = p2 - p3; // Gy = (I(i, j+1) - I(i+1, j))
+            // let magnitude = Math.sqrt(Gx * Gx + Gy * Gy);
+            // t.push(magnitude)
+        }
+        // t.push(t[t.length-1])
+    }
+    return t
+}
 
 function blur() {
     const t = []
     gaussBlur_4([...originalSlimData], t, canvas.width, canvas.height)
+
     for(let i = 0; i < t.length; i++) {
         imgData.data[i * 4] = t[i]
         imgData.data[i * 4 + 1] = t[i]
         imgData.data[i * 4 + 2] = t[i]
     }
-    ctx.putImageData(imgData, 0, 0)
+    const res = test(structuredClone(t), canvas.width, canvas.height)
+
+    const dumArr = new Uint8ClampedArray((canvas.width - 1) * (canvas.height- 1) * 4);
+    for(let i = 0; i < res.length; i++) {
+        dumArr[i * 4] = res[i] * 50
+        dumArr[i * 4 + 1] = res[i] * 50
+        dumArr[i * 4 + 2] = res[i] * 50
+        dumArr[i * 4 + 3] = 255
+    }
+
+    const dumData = new ImageData(dumArr, canvas.width- 1, canvas.height- 1)
+    ctx.putImageData(dumData, 0, 0)
+    // ctx.putImageData(imgData, 0, 0)
+
+
 
 }
 
