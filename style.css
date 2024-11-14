@@ -1,3 +1,4 @@
 canvas{
     width: 600px;
+    filter: invert(1)
 }

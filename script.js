@@ -7,6 +7,8 @@ let originalSlimData = []
 let standardDeviation = 3
 let boxes = 3
 let simplifiedRoberCrossKernel = true
+const multiplier = 1
+
 
 window.onload = function() {
     const img = new Image();
@@ -44,7 +46,7 @@ window.onload = function() {
 
 };
 // pixData compressed data (not rgba, just number array between 0 255 as gray)
-function test(pixData, width, height){
+function robertCross(pixData, width, height){
     let operation
     if(simplifiedRoberCrossKernel) {
         operation = (p1,p2,p3,p4) => Math.abs(p1 - p4) + Math.abs(p2 - p3)
@@ -65,12 +67,32 @@ function test(pixData, width, height){
             const p4 = pixData[i + width + 1]
             t.push(operation(p1,p2,p3,p4))
 
-            // let Gx = p1 - p4; // Gx = (I(i, j) - I(i+1, j+1))
-            // let Gy = p2 - p3; // Gy = (I(i, j+1) - I(i+1, j))
-            // let magnitude = Math.sqrt(Gx * Gx + Gy * Gy);
-            // t.push(magnitude)
         }
-        // t.push(t[t.length-1])
+        t.push(t[t.length-1])
+    }
+    return t
+}
+
+function sobel(pixData, width, height) {
+    let t = []
+    for(let y = 0; y < height - 2; y++) {
+        for(let x = 0; x < width - 2; x++){
+            const i = y * width + x
+            const p1 = pixData[i]
+            const p2 = pixData[i + 1]
+            const p3 = pixData[i + 2]
+            const p4 = pixData[i + width]
+            const p5 = pixData[i + width + 1]
+            const p6 = pixData[i + width + 2]
+            const p7 = pixData[i + width + width]
+            const p8 = pixData[i + width + width + 1]
+            const p9 = pixData[i + width + width + 2]
+            const gx = -p1 + p3 + (-p4 * 2) + (p6 * 2) - p7 + p9
+            const gy = p1 + (p2 * 2) + p3 - p7 - (p8 * 2) - p9
+            const magnitude = Math.sqrt(gx * gx + gy * gy)
+            t.push(magnitude)
+        }
+        t.push(t[length-1], t[length-1])
     }
     return t
 }
@@ -84,22 +106,18 @@ function blur() {
         imgData.data[i * 4 + 1] = t[i]
         imgData.data[i * 4 + 2] = t[i]
     }
-    const res = test(structuredClone(t), canvas.width, canvas.height)
+    // const res = robertCross(structuredClone(t), canvas.width, canvas.height)
+    const res = sobel(structuredClone(t), canvas.width, canvas.height)
 
-    const dumArr = new Uint8ClampedArray((canvas.width - 1) * (canvas.height- 1) * 4);
+    const dumArr = new Uint8ClampedArray((canvas.width) * (canvas.height) * 4);
     for(let i = 0; i < res.length; i++) {
-        dumArr[i * 4] = res[i] * 50
-        dumArr[i * 4 + 1] = res[i] * 50
-        dumArr[i * 4 + 2] = res[i] * 50
+        dumArr[i * 4] = res[i] * multiplier
+        dumArr[i * 4 + 1] = res[i] * multiplier
+        dumArr[i * 4 + 2] = res[i] * multiplier
         dumArr[i * 4 + 3] = 255
     }
-
-    const dumData = new ImageData(dumArr, canvas.width- 1, canvas.height- 1)
+    const dumData = new ImageData(dumArr, canvas.width, canvas.height)
     ctx.putImageData(dumData, 0, 0)
-    // ctx.putImageData(imgData, 0, 0)
-
-
-
 }
 
 function grayScale(ctx, imgData) {
