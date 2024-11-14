@@ -1,0 +1,40 @@
+
+function fastblur(canvas, radius) {
+    if (radius < 1) {
+        return;
+    }
+
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width;
+    const h = canvas.height;
+    const wm = w - 1;
+    const hm = h - 1;
+    const wh = w * h;
+    const div = radius + radius + 1;
+    const gray = new Array(wh);
+    let gsum,x,y,i,p,p1,p2,yp,yi,yw;
+    const vmin = new Array(Math.max(w, h)).fill(0);
+    const vmax = new Array(Math.max(w, h)).fill(0);
+    const pix = ctx.getImageData(0, 0, w, h)
+    let dv = new Array(256 * div);
+    for (let i = 0; i < 256 * div; i++) {
+        dv[i] = Math.floor(i / div);
+    }
+    yw=yi=0;
+    for (y=0;y<h;y++){
+        rsum=gsum=bsum=0;
+        for (let i = -radius; i <= radius; i++) {
+            let pixelIndex = yi + Math.min(wm, Math.max(i, 0));
+
+            let gray = pix[pixelIndex * 4];     // Red (index 0)
+            // Accumulate the color components
+            gsum += pix[pixelIndex * 4];
+        }    
+        yi++
+    }
+    
+    for (x=0;x<w;x++){
+        
+    }
+}
+
