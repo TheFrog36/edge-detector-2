@@ -1,31 +1,53 @@
 const imagePath = "jelly-small.jpeg";
+let canvas
+let ctx
+let imgData
+let originalData = []
+let originalSlimData = []
+let standardDeviation = 3
+let boxes = 3
+
 window.onload = function() {
     const img = new Image();
     img.src = imagePath;
     img.onload = function () {
         originalImage = img;
-        const canvas = document.getElementById('original-canvas');
-        const ctx = canvas.getContext('2d');
+        canvas = document.getElementById('original-canvas');
+        ctx = canvas.getContext('2d');
         canvas.width = img.width;
         canvas.height = img.height;
         ctx.drawImage(img, 0, 0);
-        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-        const grayData = grayScale(ctx, imgData)
-        const slimData = []
-        for(let i = 0; i < grayData.data.length; i+=4){
-            slimData.push(grayData.data[i])
+        imgData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+        grayScale(ctx, imgData)
+        originalData = structuredClone(imgData.data)
+        for(let i = 0; i < originalData.length; i+=4){
+            originalSlimData.push(originalData[i])
         }
-        const t = []
-        gaussBlur_4(slimData, t, canvas.width, canvas.height, 10)
-        for(let i = 0; i < t.length; i++) {
-            grayData.data[i * 4] = t[i]
-            grayData.data[i * 4 + 1] = t[i]
-            grayData.data[i * 4 + 2] = t[i]
-        }
-        ctx.putImageData(grayData, 0, 0)
+        blur()
+
+        document.querySelector('#standard-deviation').addEventListener('change', (v) => {
+            standardDeviation = v.target.valueAsNumber;
+            blur()
+        })
+        document.querySelector('#boxes').addEventListener('change', (v) => {
+            boxes = v.target.valueAsNumber;
+            blur()
+        })
     };
 
 };
+
+function blur() {
+    const t = []
+    gaussBlur_4([...originalSlimData], t, canvas.width, canvas.height)
+    for(let i = 0; i < t.length; i++) {
+        imgData.data[i * 4] = t[i]
+        imgData.data[i * 4 + 1] = t[i]
+        imgData.data[i * 4 + 2] = t[i]
+    }
+    ctx.putImageData(imgData, 0, 0)
+
+}
 
 function grayScale(ctx, imgData) {
     const pixels = imgData.data;
@@ -52,8 +74,8 @@ function boxesForGauss(sigma, n) {
     return sizes;
 }
 
-function gaussBlur_4 (scl, tcl, w, h, r) {
-    var bxs = boxesForGauss(r, 3);
+function gaussBlur_4 (scl, tcl, w, h) {
+    var bxs = boxesForGauss(standardDeviation, boxes);
     boxBlur_4 (scl, tcl, w, h, (bxs[0]-1)/2);
     boxBlur_4 (tcl, scl, w, h, (bxs[1]-1)/2);
     boxBlur_4 (scl, tcl, w, h, (bxs[2]-1)/2);
