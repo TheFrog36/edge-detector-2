@@ -1,20 +1,23 @@
 const images = ['jelly-big.jpeg', 'jelly-small.jpeg', 'sub.jpg', 'sub2.jpg']
 
-const imagePath = images[3];
+const imagePath = images[0];
 let canvas
 let ctx
 let imgData
 let originalData = []
 let originalSlimData = []
-let standardDeviation = 3
+let standardDeviation = 2
 let boxes = 3
 let simplifiedRoberCrossKernel = true
 const multiplier = 1
 let dv = []
 let performance1 
 let performance2
-let minTrashold = 60
+let minTrashold = 40
 const maxTrashold = 255
+let boundArr
+let bounderies = 9
+let thicc = 2
 
 window.onload = function() {
     const img = new Image();
@@ -22,6 +25,8 @@ window.onload = function() {
     img.onload = function () {
         originalImage = img;
         canvas = document.getElementById('original-canvas');
+        // canvas.width *=2
+        // canvas.height *=2
         ctx = canvas.getContext('2d');
         canvas.width = img.width;
         canvas.height = img.height;
@@ -48,6 +53,19 @@ window.onload = function() {
             minTrashold = v.target.valueAsNumber;
             blur()
         })
+
+        document.querySelector('#bound').value = bounderies
+        document.querySelector('#bound').addEventListener('change', (v) => {
+            bounderies = v.target.valueAsNumber;
+            blur()
+        })
+
+        document.querySelector('#thicc').value = thicc
+        document.querySelector('#thicc').addEventListener('change', (v) => {
+            thicc = v.target.valueAsNumber;
+            blur()
+        })
+
 
 
         document.querySelector('#simple-rober-cross').addEventListener('change', (v) => {
@@ -118,14 +136,16 @@ function blur() {
     // gaussBlur_4([...originalSlimData], t, canvas.width, canvas.height)
     t = fastBlur(structuredClone(originalSlimData), standardDeviation)
 
-    // const res = robertCross(structuredClone(t), canvas.width, canvas.height)
-    let res = sobel(structuredClone(t), canvas.width, canvas.height)
+    res = t
+    let shades
+    shades = getBounds([...res], bounderies)
+    shades = getShade(shades, canvas.width, canvas.height)
+    // // res = robertCross(structuredClone(res), canvas.width, canvas.height)
+    res = sobel(structuredClone(res), canvas.width, canvas.height)
     res = res.map(e => e < minTrashold ? 0 : 1)
     let changed = true
     let limit = 0
-    // const skelResp = skeletonize(res, canvas.width, canvas.height)
-    // res = skelResp[0]
-    while(changed && limit < 40){
+    while(changed && limit < 20){
         
         const skelResp = skeletonize(res, canvas.width, canvas.height)
         res = skelResp[0]
@@ -133,21 +153,27 @@ function blur() {
         changed = skelResp[1]
         limit++
     }   
-
-    res = thicken(res, canvas.width, canvas.height)
-
+    for(let i = 0; i < thicc; i++) {
+        res = thicken(res, canvas.width, canvas.height)
+    }
+    for(let i = 0; i < res.length; i++){
+        if(res[i]) shades[i] = 1
+    }
+    res = shades
+    res = res.map(e => !e)
+    const m = 255
     const dumArr = new Uint8ClampedArray((canvas.width) * (canvas.height) * 4);
     for(let i = 0; i < res.length; i++) {
-        dumArr[i * 4] = res[i] * 255
-        dumArr[i * 4 + 1] = res[i] * 255
-        dumArr[i * 4 + 2] = res[i] * 255
+        dumArr[i * 4] = res[i] * m
+        dumArr[i * 4 + 1] = res[i] * m
+        dumArr[i * 4 + 2] = res[i] * m
         dumArr[i * 4 + 3] = 255
     }
 
     const dumData = new ImageData(dumArr, canvas.width, canvas.height)
     ctx.putImageData(dumData, 0, 0)
     performance2 = performance.now()
-    console.log(performance2 - performance1)
+    console.log("perf", performance2 - performance1)
 }
 
 function grayScale(ctx, imgData) {
@@ -305,11 +331,15 @@ function fastBlur(pix, radius) {
 
 
 
-const pat1 = [0,0,0, 2,1,2, 1,1,1]
+const pat1 = [0,0,0, 
+              2,1,2, 
+              1,1,1]
 const pat2 = rotate90(pat1)
 const pat3 = rotate90(pat2)
 const pat4 = rotate90(pat3)
-const pat5 = [2,0,0, 1,1,0, 2,1,2]
+const pat5 = [2,0,0, 
+              1,1,0, 
+              1,1,2]
 const pat6 = rotate90(pat5)
 const pat7 = rotate90(pat6)
 const pat8 = rotate90(pat7)
@@ -434,3 +464,43 @@ function thicken(pix, width, height) {
 }
 
 
+function getBounds(arr, bounds){
+    const t = []
+    const shade = (255 / (bounds - 1))
+    const segment = Math.round(255 / bounds)
+    let calc = 0
+    boundArr = []
+    for(let i = 0; i < 255; i++){
+        if(i >= calc * segment + segment) calc ++
+        boundArr.push(Math.round(shade * calc))
+    }
+    for(let i = 0; i < arr.length; i++){
+        t.push(boundArr[arr[i]])
+    }
+    console.log(boundArr)
+    return t
+}
+
+function getShade(arr, width, height) {
+    let boundValues = [0]
+    const t = []
+    for(let i = 0; i < boundArr.length; i++) {
+        if(boundArr[i] != boundValues[boundValues.length - 1]) boundValues.push(boundArr[i])
+    }
+
+    // boundValues = boundValues.reverse()
+    for(let y = 0; y < height; y++) {
+        const valuesRef = {}
+        for(let i = 0; i < boundValues.length; i++){
+            valuesRef[boundValues[i]] = (y+1) % (i+1) == 0 ? 1 : 0
+            // valuesRef[boundValues[i]] = y % (i+i) == 0 ? 0 : 1
+        }
+        valuesRef[255] = 0
+        for(let x = 0; x < width; x++){
+            const index = y * width + x
+            t.push(valuesRef[arr[index]])
+        }
+    }
+    // boundArr
+    return t
+}
